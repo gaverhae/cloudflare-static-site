@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$DIR/.."
+
+if ! [ -z "$(git status --porcelain)" ]; then
+    echo "Not working on dirty worktree."
+    exit 1
+fi
+
+sha=$(git log -n1 --format=%h --abbrev=8)
+commit_date=$(git log -n1 --format=%cd --date=format:%Y%m%d $sha)
+number_of_commits=$(git rev-list --count $sha)
+branch=$(git branch --show-current)
+
+VERSION=$branch.$commit_date.$number_of_commits.$sha
+
+rm -rf public
+rm -rf wrang/public
+
+# compile static site
+
+mkdir public
+echo "hello" > public/index.html
+
+# resize images
+if [ -d public/img ]; then
+  find public/img \
+       -not -path '*/\.*' \
+       -type f \
+       -exec bash -c '
+    ext=$(echo $1 | grep -o "\.[^.]*")
+    base=$(echo $1 | sed "s/\(.*\)\.[^.]*/\1/")
+    magick "$1" -resize 800x2000 "$base.tmp$ext" && mv "$base.tmp$ext" "$1"
+    ' -s '{}' \;
+fi
+
+mv public wrang/public
+
+cd wrang
+npm install
+echo "$VERSION" > public/version.txt
+wrangler deploy
+echo "$VERSION" > deployed
