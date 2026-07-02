@@ -9,6 +9,5 @@ pkgs.mkShell {
     jq
     nodejs
     opentofu
-    wrangler
   ];
 }
